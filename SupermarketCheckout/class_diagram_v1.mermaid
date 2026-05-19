@@ -1,0 +1,72 @@
+%% Class diagram v1 — transcribed from your hand-drawn sketch.
+%% Render in mermaid.live, VS Code (Mermaid plugin), or any markdown viewer
+%% that supports Mermaid. Iterate freely — share with me for review.
+
+classDiagram
+    class CheckoutSystem {
+        -List~Customer~ customers
+        -List~Cashier~ cashiers
+        -Manager manager
+        -Stock stock
+        -PricingPolicy pp
+        -double revenue
+        +register...()
+        +setCategoryDiscount()
+        +showInventory()
+        +showRevenue()
+    }
+    class Stock {
+        -Map~String,Item~ items
+        +addItem()
+        +restock()
+        +soldItem()
+    }
+    class CheckoutSession {
+        -Customer customer
+        -double bill
+        -List~Item~ items
+        +scanItem()
+        +computeBill()
+        +pay()
+    }
+    class Item
+    class User {
+        <<abstract>>
+    }
+    class Manager
+    class Cashier
+    class Customer
+    class PricingPolicy {
+        <<interface>>
+    }
+    class DiscountPlan {
+        <<interface>>
+    }
+    class CatDis
+    class Prime
+    class Platinum
+    class POS {
+        +checkPin()
+        +checkTas()
+    }
+    class TAS
+    class Bank
+
+    CheckoutSystem --> Stock
+    Stock o-- Item
+    CheckoutSession --> Customer
+    CheckoutSession --> Item
+    CheckoutSession --> PricingPolicy
+    CheckoutSession --> DiscountPlan
+    Customer --> DiscountPlan
+
+    Manager --|> User
+    Cashier --|> User
+    Customer --|> User
+
+    Prime ..|> DiscountPlan
+    Platinum ..|> DiscountPlan
+    CatDis ..|> PricingPolicy
+
+    %% POS, TAS, Bank present as classes but with no relationships drawn
+    %% (this is a gap to fix in v2)

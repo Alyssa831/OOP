@@ -1,0 +1,221 @@
+%% Class diagram v3 — v2 + the missing requirement pieces highlighted in red.
+%% New additions: Delivery (R7/R8/R8b), TimeSlot + Vehicle (R10),
+%% Bill class, Customer.numericalID (§2.3), Item.priceFor(qty) (R3),
+%% DiscountPlan.deliveryDiscount (R8b).
+
+classDiagram
+    %% ===== Existing (v2) =====
+    class CheckoutSystem {
+        -Map customers
+        -Map cashiers
+        -Map manager
+        -Stock myStock
+        -PricingPolicy pp
+        -CheckoutSession session
+        -Bank bank
+        -TAS tas
+        -POS pos
+        -double revenue
+        -DeliveryScheduler scheduler
+        +startCheckout(name)
+        +setCatDis(cat, dis)
+        +getSession()
+        +getPos()
+    }
+
+    class CheckoutSession {
+        -Customer customer
+        -Map yourItems
+        -Bill bill
+        -Delivery delivery
+        +scanItem(name, q)
+        +computeBill()
+        +pay(card, pin) PaymentOutcome
+    }
+
+    class Stock {
+        -Map nameItem
+        -Map threshold
+        -List observers
+        +addItem(...)
+        +restock(name, q)
+        +sold(item, q)
+        +addObserver(o)
+        +notifyObserver(item)
+    }
+
+    class Item {
+        -String name
+        -String category
+        -double price
+        -double weight
+        -int quantity
+        +priceFor(qty) double
+    }
+
+    class POS {
+        -Bank bank
+        -TAS tas
+        -PaymentOutcome forcedNext
+        +simulateNext(o)
+        +process(card, pin, bill) PaymentOutcome
+    }
+    class Bank { -Map cards }
+    class TAS { -Map card_info }
+    class Info { -double balance; -boolean auth }
+    class Card { -int cardNumber; -int pin }
+    class PaymentOutcome {
+        <<enumeration>>
+        SUCCESS
+        PIN_WRONG
+        INSUFFICIENT_FUNDS
+        AUTH_DENIED
+    }
+    class User {
+        <<abstract>>
+        -String username
+        -int password
+    }
+    class Manager
+    class Cashier
+    class Customer {
+        -int numericalID
+        -String firstname
+        -String surname
+        -String address
+        -DiscountPlan dp
+        -Card card
+        -Delivery pendingDelivery
+    }
+
+    class DiscountPlan {
+        <<interface>>
+        +billAfterDiscount(p)
+        +deliveryDiscount(fee)
+    }
+    class Prime
+    class Platinum
+    class Normal
+
+    class PricingPolicy {
+        <<interface>>
+        +priceAfterDiscount(item)
+    }
+    class CatDis
+
+    class Observable
+    class Observer
+    class Supplier
+    class CLUI { -User currentUser; -Role currentRole }
+    class Role {
+        <<enumeration>>
+        NONE
+        MANAGER
+        CASHIER
+        CUSTOMER
+    }
+
+    %% ===== NEW (red) — requirements alignment =====
+    class Bill {
+        -double subtotal
+        -double planDiscount
+        -double deliveryFee
+        -double finalTotal
+        +applyPlanDiscount(plan)
+        +applyDeliveryFee(d)
+        +printReceipt()
+    }
+
+    class Delivery {
+        -String address
+        -double distance
+        -double totalWeight
+        -TimeSlot slot
+        +calculateFee(subtotal) double
+    }
+
+    class TimeSlot {
+        -LocalTime start
+        -LocalTime end
+        -int remainingCapacity
+        -boolean isPeak
+        -boolean isEcoFriendly
+        +book()
+    }
+
+    class Vehicle {
+        -String id
+        -double capacityKg
+        -double currentLoad
+    }
+
+    class DeliveryScheduler {
+        -List slots
+        -List vehicles
+        +findSlot(address, weight) TimeSlot
+        +applyDynamicPricing(fee, slot)
+    }
+
+    %% ===== Relationships =====
+
+    %% Existing compositions
+    CheckoutSystem "1" *-- "1" Bank
+    CheckoutSystem "1" *-- "1" TAS
+    CheckoutSystem "1" *-- "1" POS
+    CheckoutSystem "1" *-- "1" Stock
+    CheckoutSystem "1" *-- "0..1" PricingPolicy
+    CheckoutSystem "1" *-- "0..1" CheckoutSession
+    Stock "1" *-- "*" Item
+    Bank "1" *-- "*" Card
+    TAS "1" *-- "*" Info
+    Customer "1" *-- "0..1" Card
+
+    %% NEW compositions (Delivery, Bill, Logistics)
+    CheckoutSystem "1" *-- "1" DeliveryScheduler
+    CheckoutSession "1" *-- "1" Bill
+    CheckoutSession "1" *-- "0..1" Delivery
+    Customer "1" *-- "0..1" Delivery : pendingDelivery
+    Delivery "1" *-- "0..1" TimeSlot
+    DeliveryScheduler "1" o-- "*" TimeSlot
+    DeliveryScheduler "1" o-- "*" Vehicle
+    TimeSlot "0..1" --> "0..1" Vehicle : assignedTo
+
+    %% Existing aggregations
+    CheckoutSystem "1" o-- "*" Customer
+    CheckoutSystem "1" o-- "*" Cashier
+    CheckoutSystem "1" o-- "*" Manager
+    Stock "1" o-- "*" Observer
+
+    %% Existing associations
+    POS --> Bank
+    POS --> TAS
+    CheckoutSession --> Customer
+    CheckoutSession --> Stock
+    CheckoutSession --> PricingPolicy
+    CheckoutSession --> POS
+    Customer --> DiscountPlan
+    CLUI --> CheckoutSystem
+    CLUI --> User
+
+    %% NEW associations
+    Bill --> DiscountPlan : uses plan to compute discount
+    Delivery --> DiscountPlan : R8b plan-based delivery discount
+
+    %% Inheritance and realization
+    Manager --|> User
+    Cashier --|> User
+    Customer --|> User
+    Prime ..|> DiscountPlan
+    Platinum ..|> DiscountPlan
+    Normal ..|> DiscountPlan
+    CatDis ..|> PricingPolicy
+    Stock ..|> Observable
+    Supplier ..|> Observer
+
+    %% Visual highlighting for the new additions
+    classDef newAddition fill:#ffd6d6,stroke:#c0392b,stroke-width:2px,color:#222
+    class Bill newAddition
+    class Delivery newAddition
+    class TimeSlot newAddition
+    class Vehicle newAddition
+    class DeliveryScheduler newAddition

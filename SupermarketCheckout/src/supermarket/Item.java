@@ -1,0 +1,40 @@
+package supermarket;
+
+import java.util.HashMap;
+import java.util.Map;
+
+
+public class Item{
+	private String name;
+	private String category;
+	private double price;
+	private double weight;
+	private int quantity;
+	
+	public String getCategory() {
+		return category;
+	}
+
+	public double getPrice() {
+		return price;
+	}
+	
+	public Item(String name, String category, double price, double weight, int initialStock) {
+		super();
+		this.name = name;
+		this.category = category;
+		this.price = price;
+		this.weight = weight;
+		quantity = initialStock;
+		
+	}
+	public int getQuantity() {
+		return quantity;
+	}
+	
+	public void setQuantity(int quantity) {
+		this.quantity = quantity;
+		
+	}
+	
+}	

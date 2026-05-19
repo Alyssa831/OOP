@@ -1,0 +1,199 @@
+%% Class diagram v2 — updated to match the agreed design.
+%% Changes from v1: added POS/Bank/TAS relationships, Observer pattern wired up,
+%% Card class, PaymentOutcome enum, CashRegister renamed to CheckoutSession,
+%% multiplicities on associations, composition vs aggregation distinguished.
+%%
+%% Note: some pieces (Card class, Role enum, multiple observers, CheckoutSession
+%% rename) are agreed-design but not yet fully in the Java code.
+
+classDiagram
+    class CheckoutSystem {
+        -Map~String,Customer~ customers
+        -Map~String,Cashier~ cashiers
+        -Map~String,Manager~ manager
+        -Stock myStock
+        -PricingPolicy pp
+        -CheckoutSession session
+        -Bank bank
+        -TAS tas
+        -POS pos
+        -double revenue
+        +startCheckout(name)
+        +setCatDis(cat, dis)
+        +registerCustomer(...)
+        +registerCashier(...)
+        +getSession()
+        +getPos()
+    }
+
+    class CheckoutSession {
+        -Customer customer
+        -Map~Item,Integer~ yourItems
+        -double yourBill
+        -Stock myStock
+        -PricingPolicy pp
+        -POS pos
+        +scanItem(name, q)
+        +computeBill()
+        +pay(card, pin) PaymentOutcome
+    }
+
+    class Stock {
+        -Map~String,Item~ nameItem
+        -Map~Item,Integer~ threshold
+        -List~Observer~ observers
+        +addItem(...)
+        +restock(name, q)
+        +sold(item, q)
+        +addObserver(o)
+        +removeObserver(o)
+        +notifyObserver(item)
+    }
+
+    class Item {
+        -String name
+        -String category
+        -double price
+        -double weight
+        -int quantity
+    }
+
+    class POS {
+        -Bank bank
+        -TAS tas
+        -PaymentOutcome forcedNext
+        +simulateNext(outcome)
+        +process(card, pin, bill) PaymentOutcome
+    }
+
+    class Bank {
+        -Map~Integer,Card~ cards
+        +addCard(card)
+        +getCard(num) Card
+    }
+
+    class TAS {
+        -Map~Integer,Info~ card_info
+        +isAuth(num) boolean
+        +checkBalance(num, bill) boolean
+        +setBalance(num, bill)
+    }
+
+    class Info {
+        -double balance
+        -boolean auth
+    }
+
+    class Card {
+        -int cardNumber
+        -int pin
+        +matchesPin(entered) boolean
+    }
+
+    class PaymentOutcome {
+        <<enumeration>>
+        SUCCESS
+        PIN_WRONG
+        INSUFFICIENT_FUNDS
+        AUTH_DENIED
+    }
+
+    class User {
+        <<abstract>>
+        -String username
+        -int password
+    }
+    class Manager
+    class Cashier
+    class Customer {
+        -String firstname
+        -String surname
+        -String address
+        -DiscountPlan dp
+        -Card card
+    }
+
+    class DiscountPlan {
+        <<interface>>
+        +billAfterDiscount(p) double
+    }
+    class Prime
+    class Platinum
+    class Normal
+
+    class PricingPolicy {
+        <<interface>>
+        +priceAfterDiscount(item) double
+    }
+    class CatDis
+
+    class Observable {
+        <<interface>>
+        +addObserver(o)
+        +notifyObserver(item)
+    }
+    class Observer {
+        <<interface>>
+        +update(item)
+    }
+    class Supplier
+
+    class CLUI {
+        -CheckoutSystem myCheckoutSystem
+        -User currentUser
+        -Role currentRole
+        +main(args)
+    }
+    class Role {
+        <<enumeration>>
+        NONE
+        MANAGER
+        CASHIER
+        CUSTOMER
+    }
+
+    %% Composition (filled diamond)
+    CheckoutSystem "1" *-- "1" Bank
+    CheckoutSystem "1" *-- "1" TAS
+    CheckoutSystem "1" *-- "1" POS
+    CheckoutSystem "1" *-- "1" Stock
+    CheckoutSystem "1" *-- "0..1" PricingPolicy
+    CheckoutSystem "1" *-- "0..1" CheckoutSession
+    Stock "1" *-- "*" Item
+    Bank "1" *-- "*" Card
+    TAS "1" *-- "*" Info
+    Customer "1" *-- "0..1" Card
+
+    %% Aggregation (registries — users outlive any one session)
+    CheckoutSystem "1" o-- "*" Customer
+    CheckoutSystem "1" o-- "*" Cashier
+    CheckoutSystem "1" o-- "*" Manager
+
+    %% Associations (uses)
+    POS --> Bank
+    POS --> TAS
+    POS "1" --> "0..1" PaymentOutcome : forcedNext
+    CheckoutSession --> Customer
+    CheckoutSession --> Stock
+    CheckoutSession --> PricingPolicy
+    CheckoutSession --> POS
+    Customer --> DiscountPlan
+    CLUI --> CheckoutSystem
+    CLUI --> User : currentUser
+
+    %% Observer pattern (R9)
+    Stock "1" o-- "*" Observer
+
+    %% Inheritance and realization
+    Manager --|> User
+    Cashier --|> User
+    Customer --|> User
+
+    Prime ..|> DiscountPlan
+    Platinum ..|> DiscountPlan
+    Normal ..|> DiscountPlan
+
+    CatDis ..|> PricingPolicy
+
+    Stock ..|> Observable
+    Supplier ..|> Observer
