@@ -7,7 +7,7 @@ import java.util.Map;
 
 public class Stock implements Observable {
 	private Map<String,Item> nameItem = new HashMap<>();
-	private Map<Item,Integer> threshold;
+	private Map<Item,Integer> threshold = new HashMap<>();
 	private boolean changed = false;
 
 	// R9: multiple observers can subscribe (e.g., Manager AND Supplier).

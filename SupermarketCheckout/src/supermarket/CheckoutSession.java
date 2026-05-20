@@ -73,6 +73,8 @@ public class CheckoutSession {
 			}
 		}
 		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
+		//reset delivery request for next purchase
+		customer.setRequestDelivery(null);
 	}
 
 	/**

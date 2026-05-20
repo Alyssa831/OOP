@@ -427,7 +427,28 @@ public class CLUI {
 			System.out.println("Usage: runTest <testScenario-file>");
 			return;
 		}
-		try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+		String name = args[0];
+		// Try several candidate locations so runTest works no matter what the
+		// working directory is (project root, src, bin, or an absolute path).
+		String[] candidates = {
+			name,
+			"src/supermarket/" + name,
+			"bin/supermarket/" + name,
+			System.getProperty("user.dir") + java.io.File.separator + name
+		};
+		java.io.File found = null;
+		for (String path : candidates) {
+			java.io.File f = new java.io.File(path);
+			if (f.exists()) { found = f; break; }
+		}
+		if (found == null) {
+			System.out.println("Could not find test file '" + name + "'.");
+			System.out.println("Working directory is: " + System.getProperty("user.dir"));
+			System.out.println("Put the file there (or in src/supermarket/), or pass a full path.");
+			return;
+		}
+		System.out.println("Running test file: " + found.getAbsolutePath());
+		try (BufferedReader br = new BufferedReader(new FileReader(found))) {
 			String line;
 			while ((line = br.readLine()) != null) {
 				line = line.trim();
