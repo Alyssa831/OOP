@@ -13,6 +13,7 @@ public class CheckoutSystem {
 	private Map<String, Customer> customers = new HashMap<>();
 	private Map<String, Cashier> cashiers   = new HashMap<>();
 	private Map<String, Manager> managers   = new HashMap<>();
+	private Map<String, Double> addressDistance = new HashMap<>(); // for delivery fee calculation (R7/R7b)
 
 	// Available plans for subscribeToPlan (extensible — register new ones here).
 	private Map<String, DiscountPlan> plans = new HashMap<>();
@@ -76,6 +77,10 @@ public class CheckoutSystem {
 		managers.put(username, new Manager(username, password));
 	}
 
+	public void setAddressDistance(String address, double distance) {
+		addressDistance.put(address, distance);
+	}
+
 	// ---- Checkout session lifecycle ----
 
 	public void startCheckout(String customerUsername) {
@@ -101,4 +106,5 @@ public class CheckoutSystem {
 	public Bank                  getBank()      { return bank; }
 	public TAS                   getTas()       { return tas; }
 	public PricingPolicy         getPp()        { return pp; }
+	public Map<String, Double>  getAddressDistance() { return addressDistance; }
 }

@@ -14,6 +14,8 @@ public class CheckoutSession {
 	private Customer customer;
 	private Map<Item,Integer> yourItems = new HashMap<>();
 	private double yourBill = 0.0;
+	private double totalWeight = 0.0;
+	private double deliveryFee = 0.0;
 	private Stock myStock;
 	private PricingPolicy pp;
 	private POS pos;
@@ -37,10 +39,31 @@ public class CheckoutSession {
 	 */
 	public void computeBill() {
 		yourBill = 0.0;
+		totalWeight = 0.0;
+		deliveryFee = 0.0;
 		for (Item item : yourItems.keySet()) {
 			yourBill += pp.priceAfterDiscount(item) * yourItems.get(item);
+			totalWeight += item.getWeight() * yourItems.get(item);
 		}
-		yourBill = customer.getDp().billAfterDiscount(yourBill);
+		if(customer.getRequestDelivery() != null) {
+			//deliveryFee is function of weights and distance (R7/R7b)
+			// For example deliveries under 10
+			// Kg and within 30Km distance may be charged a fixed amount (e.g. 15 Euros) whereas
+			// delivery between 10 and 50 Kg should be charged a fixed amount plus a percentage of
+			// the total price for the bought items. Deliveries of more than 50 Kg are not supported
+			// and should be refused by the system
+			if(totalWeight <= 10 && customer.getRequestDelivery() != null) {
+				deliveryFee = 15.0;
+			}
+			else if(totalWeight > 10 && totalWeight <= 50 && customer.getRequestDelivery() != null) {
+				deliveryFee = 15.0 + (0.1 * yourBill); // Example: fixed amount plus 10% of total price
+			}
+			else if(totalWeight > 50 && customer.getRequestDelivery() != null) {
+				System.out.println("Delivery not supported for weights over 50 Kg.");
+				deliveryFee = 0.0; // No delivery fee, as delivery is not supported
+			}
+		}
+		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
 	}
 
 	/**

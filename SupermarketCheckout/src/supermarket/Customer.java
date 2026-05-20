@@ -13,6 +13,7 @@ public class Customer extends User {
 	private DiscountPlan dp;
 	private Card card;
 	private static int idCounter = 0;
+	private String requestDelivery=null;
 
 	public Customer(String firstname, String surname, String username,
 	                String address, int password) {
@@ -30,7 +31,9 @@ public class Customer extends User {
 	public String getAddress()       { return address; }
 	public DiscountPlan getDp()      { return dp; }
 	public Card getCard()            { return card; }
+	public String getRequestDelivery() { return requestDelivery; }
 
+	public void setRequestDelivery(String requestDelivery) { this.requestDelivery = requestDelivery; }
 	public void setDp(DiscountPlan dp) { this.dp = dp; }
 	public void setCard(Card card)     { this.card = card; }
 }

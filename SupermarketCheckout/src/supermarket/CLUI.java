@@ -74,6 +74,7 @@ public class CLUI {
 			case "showinventory":        handleShowInventory(); break;
 			case "showrevenue":          handleShowRevenue(); break;
 			case "runtest":              handleRunTest(argv); break;
+			case "requestDelivery":      handleRequestDelivery(argv); break; // allow camelCase too
 			default:
 				System.out.println("Unknown command: " + command + ". Type 'help'.");
 		}
@@ -286,14 +287,32 @@ public class CLUI {
 	}
 
 	private static void handleRequestDelivery(String[] args) {
+		String address=null;
 		if (!requireRole(Role.CUSTOMER, "requestDelivery")) return;
-		if (args.length < 1) {
-			System.out.println("Usage: requestDelivery <address>");
-			return;
+		if (args.length == 1) {
+			address = ((Customer) currentUser).getAddress();
 		}
+		else{			
+			address = String.join(" ", args);
+			address=address.toLowerCase();
+		}
+		if(!system.getAddressDistance().containsKey(address)) {
+			System.out.println("Unknown address: " + address);
+			System.out.println("enter an address from the following list or add it to the system:");
+			for (String addr : system.getAddressDistance().keySet()) {
+				System.out.println("  - " + addr);
+			}
+			return;
+		}	
+		
 		// TODO: Delivery class not yet implemented (R7/R8/R8b).
-		System.out.println("Delivery requested to: " + String.join(" ", args)
-			+ "  [note: Delivery class not yet implemented]");
+		
+		if (system.getSession() != null) {
+			System.out.println("Delivery requested to: " + address);
+			((Customer) currentUser).setRequestDelivery(address);
+		}
+		else {
+			System.out.println("  You are already in a checkout session. Delivery request can only be made before starting checkout.");
 	}
 
 	// ============== Cashier commands ==============

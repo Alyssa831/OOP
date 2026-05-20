@@ -36,18 +36,18 @@ public class Stock implements Observable {
 	}
 
 	// --- Observer pattern: subscribe/unsubscribe ---
-
+	@Override
 	public void addObserver(Observer o) {
 		observers.add(o);
 	}
-
+	@Override
 	public void removeObserver(Observer o) {
 		observers.remove(o);
 	}
 
 	@Override
 	public void notifyObserver(Item item) {
-		if (this.changed) {
+		if (this.changed && item.getQuantity() <= threshold.get(item)) {
 			for (Observer o : observers) {
 				o.update(item);
 			}

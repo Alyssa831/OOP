@@ -6,5 +6,6 @@ package supermarket;
  * knows WHAT to restock, not just that something is low.
  */
 public interface Observer {
+	
 	void update(Item item);
 }
