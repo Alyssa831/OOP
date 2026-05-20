@@ -10,8 +10,10 @@ public class CatDis implements PricingPolicy {
 	}
 	@Override
 	public double priceAfterDiscount(Item item) {
-		// TODO Auto-generated method stub
-		return item.getPrice()*catDis.get(item.getCategory());
+		// If the category has no policy registered, default to no discount
+		// (multiplier 1.0) — avoids NullPointerException on freshly added items.
+		double multiplier = catDis.getOrDefault(item.getCategory(), 1.0);
+		return item.getPrice() * multiplier;
 	}
 	@Override
 	public double setCatDis(String cat, double dis) {

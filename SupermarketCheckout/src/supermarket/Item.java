@@ -11,12 +11,20 @@ public class Item{
 	private double weight;
 	private int quantity;
 	
+	public String getName() {
+		return name;
+	}
+
 	public String getCategory() {
 		return category;
 	}
 
 	public double getPrice() {
 		return price;
+	}
+
+	public double getWeight() {
+		return weight;
 	}
 	
 	public Item(String name, String category, double price, double weight, int initialStock) {
