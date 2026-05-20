@@ -162,6 +162,11 @@ public class CLUI {
 		if (!s.getNameItem().containsKey("apple"))   s.addItem("apple",   "fruit-and-vegetables", 1.20, 0.2, 50);
 		if (!s.getNameItem().containsKey("yogurt"))  s.addItem("yogurt",  "dairy",                2.50, 0.5, 30);
 		if (!s.getNameItem().containsKey("chicken")) s.addItem("chicken", "meat",                 7.00, 1.0, 20);
+		//set thresholds for notifications (R9)
+		s.addThreshold("apple", 10);
+		s.addThreshold("yogurt", 5);
+		s.addThreshold("chicken", 5);
+		s.addObserver(new Supplier());
 	}
 
 	// ============== Manager commands ==============
@@ -214,7 +219,9 @@ public class CLUI {
 			double weight = Double.parseDouble(args[3]);
 			int stock = Integer.parseInt(args[4]);
 			system.getMyStock().addItem(name, category, price, weight, stock);
+			system.getMyStock().addThreshold(name, 10); // default threshold for new items
 			System.out.println("Added " + name + " (" + category + ", " + price + "€).");
+			System.out.println("Set default threshold for " + name + " to 10 units.");
 		} catch (NumberFormatException e) {
 			System.out.println("Invalid number in arguments.");
 		}
@@ -304,15 +311,13 @@ public class CLUI {
 			}
 			return;
 		}	
-		
-		// TODO: Delivery class not yet implemented (R7/R8/R8b).
-		
-		if (system.getSession() != null) {
+		if (system.getSession() == null) {
 			System.out.println("Delivery requested to: " + address);
 			((Customer) currentUser).setRequestDelivery(address);
 		}
 		else {
 			System.out.println("  You are already in a checkout session. Delivery request can only be made before starting checkout.");
+		}
 	}
 
 	// ============== Cashier commands ==============
@@ -365,8 +370,13 @@ public class CLUI {
 			System.out.println("No active checkout.");
 			return;
 		}
-		system.getSession().computeBill();
-		System.out.printf("Total bill: %.2f€%n", system.getSession().getYourBill());
+		try {
+			system.getSession().computeBill();
+			System.out.printf("Total bill: %.2f€%n", system.getSession().getYourBill());
+		} catch (IllegalStateException e) {
+			// Raised e.g. when delivery weight exceeds the 50 kg limit (R8).
+			System.out.println("Cannot compute bill: " + e.getMessage());
+		}
 	}
 
 	private static void handlePay(String[] args) {

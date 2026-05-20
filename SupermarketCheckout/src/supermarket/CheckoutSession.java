@@ -19,12 +19,16 @@ public class CheckoutSession {
 	private Stock myStock;
 	private PricingPolicy pp;
 	private POS pos;
+	private PriceCalculator priceCalculator = new PriceCalculator();
+	private double distance ;
+	
 
-	public CheckoutSession(Customer customer, Stock myStock, PricingPolicy pp, POS pos) {
+	public CheckoutSession(Customer customer, Stock myStock, PricingPolicy pp, POS pos, double distance) {
 		this.customer = customer;
 		this.myStock = myStock;
 		this.pp = pp;
 		this.pos = pos;
+		this.distance = distance;
 	}
 
 	public void scanItem(String name, int q) {
@@ -42,8 +46,10 @@ public class CheckoutSession {
 		totalWeight = 0.0;
 		deliveryFee = 0.0;
 		for (Item item : yourItems.keySet()) {
-			yourBill += pp.priceAfterDiscount(item) * yourItems.get(item);
-			totalWeight += item.getWeight() * yourItems.get(item);
+			int q=yourItems.get(item); //quantity of this item in the cart
+			double newPrice=priceCalculator.calculatePrice(item, q);
+			yourBill += pp.priceAfterDiscount(item,newPrice) * q;
+			totalWeight += item.getWeight() * q;
 		}
 		if(customer.getRequestDelivery() != null) {
 			//deliveryFee is function of weights and distance (R7/R7b)
@@ -51,16 +57,19 @@ public class CheckoutSession {
 			// Kg and within 30Km distance may be charged a fixed amount (e.g. 15 Euros) whereas
 			// delivery between 10 and 50 Kg should be charged a fixed amount plus a percentage of
 			// the total price for the bought items. Deliveries of more than 50 Kg are not supported
-			// and should be refused by the system
-			if(totalWeight <= 10 && customer.getRequestDelivery() != null) {
+			// and should be refused by the 
+			
+			if(totalWeight <= 10 && distance <= 30 && customer.getRequestDelivery() != null) {
 				deliveryFee = 15.0;
 			}
 			else if(totalWeight > 10 && totalWeight <= 50 && customer.getRequestDelivery() != null) {
 				deliveryFee = 15.0 + (0.1 * yourBill); // Example: fixed amount plus 10% of total price
 			}
-			else if(totalWeight > 50 && customer.getRequestDelivery() != null) {
-				System.out.println("Delivery not supported for weights over 50 Kg.");
-				deliveryFee = 0.0; // No delivery fee, as delivery is not supported
+			else if (totalWeight > 50) {
+				// R8: deliveries over 50 kg are refused. Aborting computeBill
+				// signals the refusal to the caller (CLUI catches and prints).
+				throw new IllegalStateException(
+					"Delivery refused: weight " + totalWeight + " kg exceeds the 50 kg limit.");
 			}
 		}
 		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
