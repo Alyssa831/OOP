@@ -1,5 +1,5 @@
 package supermarket;
 
 public interface DiscountPlan {
-	public double billAfterDiscount(double price);
+	public double billAfterDiscount(double price, double deliveryfee);
 }

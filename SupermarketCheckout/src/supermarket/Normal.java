@@ -5,7 +5,7 @@ package supermarket;
  */
 public class Normal implements DiscountPlan {
 	@Override
-	public double billAfterDiscount(double price) {
-		return price;
+	public double billAfterDiscount(double price,double deliveryfee) {
+		return price+deliveryfee;
 	}
 }

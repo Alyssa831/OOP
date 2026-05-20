@@ -10,10 +10,11 @@ public class Prime implements DiscountPlan {
 	//is greater than or equal to 50 Euros
 
 	@Override
-	public double billAfterDiscount(double price) {
+	public double billAfterDiscount(double price, double deliveryfee) {
 		// 20% off when the subtotal is >= 50€, no discount otherwise (R5)
 		if (price >= 50) return price * (1 - discount);
-		return price;
+		
+		return price+0.5*deliveryfee;
 	}
 
 }

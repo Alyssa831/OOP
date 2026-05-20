@@ -7,7 +7,7 @@ public class Platinum implements DiscountPlan {
 	private double discount = 0.3;
 
 	@Override
-	public double billAfterDiscount(double price) {
+	public double billAfterDiscount(double price, double deliveryfee) {
 		return price * (1 - discount);
 	}
 }
