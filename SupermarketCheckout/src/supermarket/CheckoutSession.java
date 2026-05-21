@@ -45,26 +45,50 @@ public class CheckoutSession {
 			yourBill += pp.priceAfterDiscount(item) * yourItems.get(item);
 			totalWeight += item.getWeight() * yourItems.get(item);
 		}
-		if(customer.getRequestDelivery() != null) {
-			//deliveryFee is function of weights and distance (R7/R7b)
-			// For example deliveries under 10
-			// Kg and within 30Km distance may be charged a fixed amount (e.g. 15 Euros) whereas
-			// delivery between 10 and 50 Kg should be charged a fixed amount plus a percentage of
-			// the total price for the bought items. Deliveries of more than 50 Kg are not supported
-			// and should be refused by the system
-			if(totalWeight <= 10 && customer.getRequestDelivery() != null) {
+
+		double subtotalBeforeDelivery = yourBill;
+
+		String deliveryRequest = customer.getRequestDelivery();
+			
+		// Check if this is a new R10 request with time slot (format: "address|timeSlot")
+		if (deliveryRequest.contains("|")) {
+			// R10: Use DeliveryService with time slot
+			String[] parts = deliveryRequest.split("\\|");
+			String address = parts[0];
+			String timeSlot = parts[1];
+			
+			DeliveryService ds = DeliveryService.getInstance();
+			
+			// Check weight limit first
+			if (totalWeight > 50) {
+				System.out.println("Delivery not supported: weight exceeds 50 Kg.");
+				deliveryFee = 0.0;
+			} else {
+				// Calculate delivery fee using R10 rules
+				deliveryFee = ds.calculateDeliveryFee(totalWeight, subtotalBeforeDelivery, customer, timeSlot);
+				if (deliveryFee > 0) {
+					System.out.printf("Delivery fee (R10): %.2f EUR for slot %s%n", deliveryFee, timeSlot);
+				}
+			}
+		} else {
+			// Legacy R8/R8b: No time slot (old format, just address)
+			if(totalWeight <= 10) {
 				deliveryFee = 15.0;
+				System.out.println("Delivery fee (fixed): 15.00 EUR");
 			}
-			else if(totalWeight > 10 && totalWeight <= 50 && customer.getRequestDelivery() != null) {
-				deliveryFee = 15.0 + (0.1 * yourBill); // Example: fixed amount plus 10% of total price
+			else if(totalWeight > 10 && totalWeight <= 50) {
+				deliveryFee = 15.0 + (0.1 * yourBill);
+				System.out.printf("Delivery fee (fixed + 10%%): %.2f EUR%n", deliveryFee);
 			}
-			else if(totalWeight > 50 && customer.getRequestDelivery() != null) {
+			else if(totalWeight > 50) {
 				System.out.println("Delivery not supported for weights over 50 Kg.");
-				deliveryFee = 0.0; // No delivery fee, as delivery is not supported
+				deliveryFee = 0.0;
 			}
 		}
+		// Apply customer plan discount to (item total + delivery fee)
 		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
 	}
+		
 
 	/**
 	 * Run the payment. Inventory is decremented and the cart cleared ONLY on
@@ -76,8 +100,26 @@ public class CheckoutSession {
 			for (Item item : yourItems.keySet()) {
 				myStock.sold(item, yourItems.get(item));
 			}
+			if (customer.getRequestDelivery() != null && !customer.getRequestDelivery().isEmpty()) {
+				String deliveryRequest = customer.getRequestDelivery();
+				
+				if (deliveryRequest.contains("|")) {
+					String[] parts = deliveryRequest.split("\\|");
+					String timeSlot = parts[1];
+					
+					DeliveryService ds = DeliveryService.getInstance();
+					ds.bookDelivery(totalWeight, customer, timeSlot);
+					System.out.println("Delivery slot booked: " + timeSlot);
+				}
+				
+				// Clear the delivery request after successful payment
+				customer.setRequestDelivery(null);
+			}
+			
 			yourItems.clear();
 			yourBill = 0;
+			totalWeight = 0;
+			deliveryFee = 0;
 		}
 		return result;
 	}
@@ -86,4 +128,5 @@ public class CheckoutSession {
 	public double getYourBill()        { return yourBill; }
 	public Stock getMyStock()          { return myStock; }
 	public Map<Item, Integer> getCart() { return yourItems; }
+	public double getTotalWeight()     { return totalWeight; }
 }

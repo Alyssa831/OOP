@@ -287,32 +287,57 @@ public class CLUI {
 	}
 
 	private static void handleRequestDelivery(String[] args) {
-		String address=null;
 		if (!requireRole(Role.CUSTOMER, "requestDelivery")) return;
-		if (args.length == 1) {
-			address = ((Customer) currentUser).getAddress();
+		
+		// Need address AND time slot now for R10
+		if (args.length < 2) {
+			System.out.println("Usage: requestDelivery <address> <timeSlot>");
+			System.out.println("Example: requestDelivery \"rue de rivoli, 75001 paris\" \"2026-05-21_18:00\"");
+			System.out.println("\nAvailable time slots:");
+			DeliveryService.getInstance().getAvailableSlots(0).forEach(slot -> 
+				System.out.println("  " + slot));
+			return;
 		}
-		else{			
-			address = String.join(" ", args);
-			address=address.toLowerCase();
-		}
-		if(!system.getAddressDistance().containsKey(address)) {
+		
+		// Build address (may have spaces) - time slot is the last argument
+		String timeSlot = args[args.length - 1];
+		String address = String.join(" ", java.util.Arrays.copyOf(args, args.length - 1)).toLowerCase();
+		
+		// Check if address exists in system
+		if (!system.getAddressDistance().containsKey(address)) {
 			System.out.println("Unknown address: " + address);
-			System.out.println("enter an address from the following list or add it to the system:");
+			System.out.println("Available addresses:");
 			for (String addr : system.getAddressDistance().keySet()) {
 				System.out.println("  - " + addr);
 			}
 			return;
-		}	
+		}
 		
-		// TODO: Delivery class not yet implemented (R7/R8/R8b).
+		Customer customer = (Customer) currentUser;
+		
+		// Get current cart weight from active checkout session (if any)
+		double cartWeight = 0;
+		if (system.getSession() != null) {
+			cartWeight = system.getSession().getTotalWeight();  // ← This uses CheckoutSession's getTotalWeight()
+		}
+		
+		// Check if time slot has capacity
+		if (!DeliveryService.getInstance().hasCapacity(cartWeight, timeSlot)) {
+			System.out.println("❌ Time slot " + timeSlot + " is not available or fully booked");
+			System.out.println("Available slots for " + cartWeight + "kg cart:");
+			DeliveryService.getInstance().getAvailableSlots(cartWeight).forEach(slot -> 
+				System.out.println("  " + slot));
+			return;
+		}
+		
+		// Store delivery request with time slot (format: "address|timeSlot")
+		customer.setRequestDelivery(address + "|" + timeSlot);
+		System.out.println("✅ Delivery requested to: " + address);
+		System.out.println("   Time slot: " + timeSlot);
 		
 		if (system.getSession() != null) {
-			System.out.println("Delivery requested to: " + address);
-			((Customer) currentUser).setRequestDelivery(address);
+			System.out.println("⚠️ Note: Checkout already in progress. The delivery fee will be applied when you run computeBill.");
 		}
-		else {
-			System.out.println("  You are already in a checkout session. Delivery request can only be made before starting checkout.");
 	}
 
 	// ============== Cashier commands ==============
