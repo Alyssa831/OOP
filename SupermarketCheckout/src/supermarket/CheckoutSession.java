@@ -41,15 +41,10 @@ public class CheckoutSession {
 	 * resulting subtotal. The brief is silent on order — this is the documented
 	 * choice for the report.
 	 */
-	/**
-	 * Compute the total bill including delivery fee with R10 dynamic pricing
-	 */
 	public void computeBill() {
 		yourBill = 0.0;
 		totalWeight = 0.0;
 		deliveryFee = 0.0;
-		
-		// Calculate item totals
 		for (Item item : yourItems.keySet()) {
 			int q=yourItems.get(item); //quantity of this item in the cart
 			double newPrice=priceCalculator.calculatePrice(item, q);
@@ -77,8 +72,6 @@ public class CheckoutSession {
 					"Delivery refused: weight " + totalWeight + " kg exceeds the 50 kg limit.");
 			}
 		}
-		
-		// Apply customer plan discount to (item total + delivery fee)
 		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
 		//reset delivery request for next purchase
 		customer.setRequestDelivery(null);
@@ -87,7 +80,6 @@ public class CheckoutSession {
 	/**
 	 * Run the payment. Inventory is decremented and the cart cleared ONLY on
 	 * SUCCESS — failure outcomes leave state untouched so the cashier can retry.
-	 * Also books the delivery slot if delivery was requested.
 	 */
 	public PaymentOutcome pay(int cardnumber, int pin) {
 		PaymentOutcome result = pos.process(cardnumber, pin, yourBill);
@@ -95,22 +87,8 @@ public class CheckoutSession {
 			for (Item item : yourItems.keySet()) {
 				myStock.sold(item, yourItems.get(item));
 			}
-			
-			// Book the delivery slot if delivery was requested
-			if (customer.getRequestDelivery() != null && customer.getAssignedTimeSlot() != null) {
-				DeliveryService ds = DeliveryService.getInstance();
-				ds.bookDelivery(customer, totalWeight);
-				System.out.println("📦 Delivery slot booked successfully!");
-			}
-			
 			yourItems.clear();
 			yourBill = 0;
-			totalWeight = 0;
-			deliveryFee = 0;
-			
-			// Clear delivery request and assigned slot
-			customer.setRequestDelivery(null);
-			customer.clearDeliveryRequest();
 		}
 		return result;
 	}
