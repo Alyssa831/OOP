@@ -8,6 +8,9 @@ public class Platinum implements DiscountPlan {
 
 	@Override
 	public double billAfterDiscount(double price, double deliveryfee) {
-		return price * (1 - discount);
+		// Item discount only (R5): 30% off the items, regardless of total.
+		// The delivery fee's plan discount (R8b: platinum delivery is free) is
+		// applied by DeliveryService, so we just ADD the (already-zeroed) fee.
+		return price * (1 - discount) + deliveryfee;
 	}
 }

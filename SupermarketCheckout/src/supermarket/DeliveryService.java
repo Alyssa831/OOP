@@ -19,11 +19,22 @@ public class DeliveryService {
     
     // Store the assigned slot for each customer's pending delivery
     private Map<String, String> customerAssignedSlot;
-    
+
+    // Address book: address (lowercased) -> distance in km.
+    // Unknown addresses fall back to a default distance (see calculateDistance).
+    private Map<String, Double> distanceBook;
+    private static final double DEFAULT_DISTANCE_KM = 20.0;
+
     private DeliveryService() {
         this.slotManager = DeliverySlotManager.getInstance();
         this.deliveriesByArea = new HashMap<>();
         this.customerAssignedSlot = new HashMap<>();
+        this.distanceBook = new HashMap<>();
+    }
+
+    /** Register a known address and its distance (km). Case-insensitive. */
+    public void setDistance(String address, double km) {
+        if (address != null) distanceBook.put(address.toLowerCase(), km);
     }
     
     public static DeliveryService getInstance() {
@@ -83,7 +94,9 @@ public class DeliveryService {
      * Calculate delivery fee with all applicable rules
      */
     public double calculateDeliveryFee(double totalWeight, double subtotal, Customer customer, String slotKey) {
-        String address = customer.getAddress();
+        // Use the requested delivery address; fall back to the registered one.
+        String address = customer.getRequestDelivery() != null
+            ? customer.getRequestDelivery() : customer.getAddress();
         
         if (totalWeight > 50) {
             return 0.0;
@@ -185,14 +198,10 @@ public class DeliveryService {
     }
     
     private int calculateDistance(String address) {
-        if (address == null) return 10;
-        String postalCode = extractPostalCode(address);
-        if (postalCode.isEmpty()) return 10;
-        try {
-            return Integer.parseInt(postalCode.substring(postalCode.length() - 2)) % 50;
-        } catch (NumberFormatException e) {
-            return 10;
-        }
+        // Look the address up in the address book (case-insensitive).
+        // Unknown addresses fall back to a default distance.
+        if (address == null) return (int) Math.round(DEFAULT_DISTANCE_KM);
+        return (int) Math.round(distanceBook.getOrDefault(address.toLowerCase(), DEFAULT_DISTANCE_KM));
     }
     
     private String extractAreaCode(String address) {

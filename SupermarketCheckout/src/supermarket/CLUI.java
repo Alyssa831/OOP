@@ -151,11 +151,21 @@ public class CLUI {
 		tas.addCardInfo(1234, new Info(500.0, true));
 		system.registerCustomer("Default", "Customer", "customer", "1 Default Street", 2222, customerCard);
 		
-		// Set addresses and distances for delivery (R7/R8/R8b).
-		system.setAddressDistance("rue de rivoli, 75001 paris", 1.3);
-		system.setAddressDistance("place d'armes, 78000 versailles", 19.84);
-		system.setAddressDistance("95700 roissy-en-france", 33.76);
-		system.setAddressDistance("boulevard de Parc, 77700 Coupvray", 39.58);
+		// Set addresses and distances for delivery (R7/R8/R10).
+		// Populate both the legacy CheckoutSystem map and the DeliveryService
+		// address book (the latter is what the R10 fee calculation uses now).
+		DeliveryService ds = DeliveryService.getInstance();
+		String[][] knownAddresses = {
+			{"rue de rivoli, 75001 paris",        "1.3"},
+			{"place d'armes, 78000 versailles",   "19.84"},
+			{"95700 roissy-en-france",            "33.76"},
+			{"boulevard de parc, 77700 coupvray", "39.58"}
+		};
+		for (String[] a : knownAddresses) {
+			double km = Double.parseDouble(a[1]);
+			system.setAddressDistance(a[0], km);
+			ds.setDistance(a[0], km);
+		}
 
 		// Three mandatory categories (R2b) — one starter item per category.
 		Stock s = system.getMyStock();
@@ -188,22 +198,56 @@ public class CLUI {
 
 	private static void handleRegisterCustomer(String[] args) {
 		if (!requireRole(Role.MANAGER, "registerCustomer")) return;
-		if (args.length != 5) {
-			System.out.println("Usage: registerCustomer <firstName> <lastName> <username> <address> <password>");
+		// Two accepted forms:
+		//   (a) plain, single-token address (per the brief):
+		//       registerCustomer <firstName> <lastName> <username> <address> <password>
+		//   (b) bracketed address that may contain spaces:
+		//       registerCustomer <firstName> <lastName> <username> [<address>] <password>
+		String joined = String.join(" ", args);
+		int open  = joined.indexOf('[');
+		int close = joined.indexOf(']');
+
+		String firstName, lastName, username, address;
+		String passwordToken;
+
+		if (open >= 0 && close > open) {
+			// Form (b): bracketed address
+			address = joined.substring(open + 1, close).trim();
+			String[] before = joined.substring(0, open).trim().split("\\s+");
+			String[] after  = joined.substring(close + 1).trim().split("\\s+");
+			if (before.length != 3 || after.length < 1 || after[0].isEmpty()) {
+				printRegisterCustomerUsage();
+				return;
+			}
+			firstName = before[0]; lastName = before[1]; username = before[2];
+			passwordToken = after[0];
+		} else if (args.length == 5) {
+			// Form (a): plain, single-token address
+			firstName = args[0]; lastName = args[1]; username = args[2];
+			address = args[3]; passwordToken = args[4];
+		} else {
+			printRegisterCustomerUsage();
 			return;
 		}
+
 		try {
-			int pw = Integer.parseInt(args[4]);
+			int pw = Integer.parseInt(passwordToken);
 			// Auto-generate a test card for this customer.
 			int cardNumber = 1000 + system.getCustomers().size() + 1;
 			Card card = new Card(cardNumber, 0);
 			bank.addCard(card);
 			tas.addCardInfo(cardNumber, new Info(500.0, true));
-			system.registerCustomer(args[0], args[1], args[2], args[3], pw, card);
-			System.out.println("Customer registered: " + args[2] + " (card " + cardNumber + ", PIN 0000)");
+			system.registerCustomer(firstName, lastName, username, address, pw, card);
+			System.out.println("Customer registered: " + username + " (card " + cardNumber + ", PIN 0000)");
 		} catch (NumberFormatException e) {
 			System.out.println("Password must be an integer.");
 		}
+	}
+
+	private static void printRegisterCustomerUsage() {
+		System.out.println("Usage: registerCustomer <firstName> <lastName> <username> <address> <password>");
+		System.out.println("  For an address with spaces, wrap it in square brackets, e.g.:");
+		System.out.println("  registerCustomer Alice Martin alice [12 rue de la paix, 75001 paris] 4444");
 	}
 
 	private static void handleAddItem(String[] args) {
@@ -294,34 +338,40 @@ public class CLUI {
 	}
 
 	private static void handleRequestDelivery(String[] args) {
-		String address=null;
 		if (!requireRole(Role.CUSTOMER, "requestDelivery")) return;
-		if (args.length == 1) {
+
+		// Address may contain spaces, so wrap it in square brackets:
+		//   requestDelivery [<address>]
+		// With no arguments, the customer's own registered address is used.
+		// The distance is derived from the postal code by DeliveryService (R10),
+		// so there is no fixed address book to validate against.
+		String address;
+		String joined = String.join(" ", args).trim();
+		int open  = joined.indexOf('[');
+		int close = joined.indexOf(']');
+		if (open >= 0 && close > open) {
+			address = joined.substring(open + 1, close).trim();
+		} else if (joined.isEmpty()) {
 			address = ((Customer) currentUser).getAddress();
+		} else {
+			address = joined; // accept a bare address too
 		}
-		else{			
-			address = String.join(" ", args);
-			address=address.toLowerCase();
-		}
-		if(!system.getAddressDistance().containsKey(address)) {
-			System.out.println("Unknown address: " + address);
-			System.out.println("enter an address from the following list or add it to the system:");
-			for (String addr : system.getAddressDistance().keySet()) {
-				System.out.println("  - " + addr);
-			}
+
+		if (address == null || address.isEmpty()) {
+			System.out.println("Usage: requestDelivery [<address>]  (omit the address to use your registered one)");
 			return;
-		}	
-		if (system.getSession() == null) {
-			System.out.println("Delivery requested to: " + address);
-			((Customer) currentUser).setRequestDelivery(address);
 		}
-		else {
-			System.out.println("  You are already in a checkout session. Delivery request can only be made before starting checkout.");
+
+		// Delivery is a PENDING request applied to the next checkout (R7), so it
+		// must be set BEFORE a checkout session is open.
+		if (system.getSession() != null) {
+			System.out.println("Cannot request delivery during an active checkout. Request it before startCheckout.");
+			return;
 		}
-		
+
 		((Customer) currentUser).setRequestDelivery(address);
 		System.out.println("Delivery requested to: " + address);
-		System.out.println("   The system will assign the best available time slot when you checkout.");
+		System.out.println("   The system will assign the best available time slot at checkout.");
 	}
 
 	// ============== Cashier commands ==============

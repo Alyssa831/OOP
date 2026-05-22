@@ -11,10 +11,11 @@ public class Prime implements DiscountPlan {
 
 	@Override
 	public double billAfterDiscount(double price, double deliveryfee) {
-		// 20% off when the subtotal is >= 50€, no discount otherwise (R5)
-		if (price >= 50) return price * (1 - discount);
-		
-		return price+0.5*deliveryfee;
+		// Item discount only (R5): 20% off the items when the subtotal is >= 50€.
+		// The delivery fee's plan discount (R8b: prime pays 50%) is applied by
+		// DeliveryService, so here we just ADD the already-discounted delivery fee.
+		double items = (price >= 50) ? price * (1 - discount) : price;
+		return items + deliveryfee;
 	}
 
 }
