@@ -204,10 +204,4 @@ public class DeliveryService {
         String postalCode = extractPostalCode(address);
         return postalCode.length() >= 3 ? postalCode.substring(0, 3) : postalCode;
     }
-    
-    private String extractPostalCode(String address) {
-        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\b\\d{5}\\b");
-        java.util.regex.Matcher m = p.matcher(address);
-        return m.find() ? m.group() : "";
-    }
 }

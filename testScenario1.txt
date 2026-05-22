@@ -87,8 +87,5 @@ logout
 login ceo 123456789
 showInventory
 showRevenue
-<<<<<<< Updated upstream
 logout
-=======
-logout
->>>>>>> Stashed changes
+

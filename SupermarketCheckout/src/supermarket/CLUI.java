@@ -318,6 +318,10 @@ public class CLUI {
 		else {
 			System.out.println("  You are already in a checkout session. Delivery request can only be made before starting checkout.");
 		}
+		
+		((Customer) currentUser).setRequestDelivery(address);
+		System.out.println("Delivery requested to: " + address);
+		System.out.println("   The system will assign the best available time slot when you checkout.");
 	}
 
 	// ============== Cashier commands ==============
