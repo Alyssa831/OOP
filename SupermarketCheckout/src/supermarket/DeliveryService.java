@@ -60,13 +60,9 @@ public class DeliveryService {
         String slotKey = bestSlot.getSlotKey();
         customerAssignedSlot.put(customer.getUsername(), slotKey);
         
-        // Calculate estimated fee to show customer
-        double estimatedFee = calculateDeliveryFee(cartWeight, 0, customer, slotKey);
-        
         // Show customer their assigned slot
         System.out.println("✅ Delivery requested to: " + address);
         System.out.println("   📦 Assigned time slot: " + bestSlot.getTimeWindow());
-        System.out.printf("   💰 Estimated delivery fee: %.2f EUR%n", estimatedFee);
         
         if (bestSlot.isPeakHour()) {
             System.out.println("   ⚠️ Peak hour surcharge applied (+50%)");
