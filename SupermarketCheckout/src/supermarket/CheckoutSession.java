@@ -46,35 +46,53 @@ public class CheckoutSession {
 		totalWeight = 0.0;
 		deliveryFee = 0.0;
 		for (Item item : yourItems.keySet()) {
-			int q=yourItems.get(item); //quantity of this item in the cart
-			double newPrice=priceCalculator.calculatePrice(item, q);
-			yourBill += pp.priceAfterDiscount(item,newPrice) * q;
+			int q = yourItems.get(item);
+			double newPrice = priceCalculator.calculatePrice(item, q);
+			yourBill += pp.priceAfterDiscount(item, newPrice) * q;
 			totalWeight += item.getWeight() * q;
 		}
-		if(customer.getRequestDelivery() != null) {
-			//deliveryFee is function of weights and distance (R7/R7b)
-			// For example deliveries under 10
-			// Kg and within 30Km distance may be charged a fixed amount (e.g. 15 Euros) whereas
-			// delivery between 10 and 50 Kg should be charged a fixed amount plus a percentage of
-			// the total price for the bought items. Deliveries of more than 50 Kg are not supported
-			// and should be refused by the 
+		
+		double subtotalBeforeDelivery = yourBill;
+		
+		// Calculate delivery fee if requested
+		if (customer.getRequestDelivery() != null) {
+			String assignedSlot = customer.getAssignedTimeSlot();
 			
-			if(totalWeight <= 10 && distance <= 30 && customer.getRequestDelivery() != null) {
-				deliveryFee = 15.0;
+			// If no slot assigned yet, use DeliveryService to get one
+			if (assignedSlot == null) {
+				DeliveryService ds = DeliveryService.getInstance();
+				assignedSlot = ds.requestDelivery(customer, customer.getRequestDelivery(), totalWeight);
+				if (assignedSlot != null) {
+					customer.setAssignedTimeSlot(assignedSlot);
+				}
 			}
-			else if(totalWeight > 10 && totalWeight <= 50 && customer.getRequestDelivery() != null) {
-				deliveryFee = 15.0 + (0.1 * yourBill); // Example: fixed amount plus 10% of total price
-			}
-			else if (totalWeight > 50) {
-				// R8: deliveries over 50 kg are refused. Aborting computeBill
-				// signals the refusal to the caller (CLUI catches and prints).
-				throw new IllegalStateException(
-					"Delivery refused: weight " + totalWeight + " kg exceeds the 50 kg limit.");
+			
+			// Calculate delivery fee with the assigned slot
+			if (assignedSlot != null) {
+				DeliveryService ds = DeliveryService.getInstance();
+				
+				if (totalWeight > 50) {
+					throw new IllegalStateException(
+						"Delivery refused: weight " + totalWeight + " kg exceeds the 50 kg limit.");
+				}
+				
+				deliveryFee = ds.calculateDeliveryFee(totalWeight, subtotalBeforeDelivery, customer, assignedSlot);
+				System.out.printf("Delivery fee: %.2f EUR%n", deliveryFee);
+			} else {
+				// Fallback to legacy R8 logic if no slot available
+				if (totalWeight <= 10 && distance <= 30) {
+					deliveryFee = 15.0;
+				} else if (totalWeight > 10 && totalWeight <= 50) {
+					deliveryFee = 15.0 + (0.1 * yourBill);
+				} else if (totalWeight > 50) {
+					throw new IllegalStateException("Delivery refused: weight exceeds 50kg");
+				}
 			}
 		}
 		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
-		//reset delivery request for next purchase
-		customer.setRequestDelivery(null);
+		
+		// Clear delivery request for next purchase (but keep assigned slot until payment)
+		// We'll clear the request, but keep assigned slot for booking during pay()
 	}
 
 	/**
