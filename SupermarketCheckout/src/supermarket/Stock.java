@@ -7,7 +7,7 @@ import java.util.Map;
 
 public class Stock implements Observable {
 	private Map<String,Item> nameItem = new HashMap<>();
-	private Map<Item,Integer> threshold;
+	private Map<Item,Integer> threshold = new HashMap<>();
 	private boolean changed = false;
 
 	// R9: multiple observers can subscribe (e.g., Manager AND Supplier).
@@ -16,6 +16,10 @@ public class Stock implements Observable {
 	public Map<String, Item> getNameItem() { return nameItem; }
 	public void setNameItem(Map<String, Item> nameItem) { this.nameItem = nameItem; }
 
+	//addThreshold <itemName> <threshold>
+	public void addThreshold(String name, int threshold) {
+		this.threshold.put(nameItem.get(name), threshold);
+	}
 	// addItem <itemName> <categoryName> <unitPrice> <weight> <initialStock>
 	public void addItem(String name, String category, double price, double weight, int initialStock) {
 		nameItem.put(name, new Item(name, category, price, weight, initialStock));

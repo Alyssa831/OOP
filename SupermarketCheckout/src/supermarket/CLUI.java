@@ -162,6 +162,11 @@ public class CLUI {
 		if (!s.getNameItem().containsKey("apple"))   s.addItem("apple",   "fruit-and-vegetables", 1.20, 0.2, 50);
 		if (!s.getNameItem().containsKey("yogurt"))  s.addItem("yogurt",  "dairy",                2.50, 0.5, 30);
 		if (!s.getNameItem().containsKey("chicken")) s.addItem("chicken", "meat",                 7.00, 1.0, 20);
+		//set thresholds for notifications (R9)
+		s.addThreshold("apple", 10);
+		s.addThreshold("yogurt", 5);
+		s.addThreshold("chicken", 5);
+		s.addObserver(new Supplier());
 	}
 
 	// ============== Manager commands ==============
@@ -214,7 +219,9 @@ public class CLUI {
 			double weight = Double.parseDouble(args[3]);
 			int stock = Integer.parseInt(args[4]);
 			system.getMyStock().addItem(name, category, price, weight, stock);
+			system.getMyStock().addThreshold(name, 10); // default threshold for new items
 			System.out.println("Added " + name + " (" + category + ", " + price + "€).");
+			System.out.println("Set default threshold for " + name + " to 10 units.");
 		} catch (NumberFormatException e) {
 			System.out.println("Invalid number in arguments.");
 		}
@@ -304,15 +311,17 @@ public class CLUI {
 			}
 			return;
 		}	
-		
-		// TODO: Delivery class not yet implemented (R7/R8/R8b).
-		
-		if (system.getSession() != null) {
+		if (system.getSession() == null) {
 			System.out.println("Delivery requested to: " + address);
 			((Customer) currentUser).setRequestDelivery(address);
 		}
 		else {
 			System.out.println("  You are already in a checkout session. Delivery request can only be made before starting checkout.");
+		}
+		
+		((Customer) currentUser).setRequestDelivery(address);
+		System.out.println("Delivery requested to: " + address);
+		System.out.println("   The system will assign the best available time slot when you checkout.");
 	}
 
 	// ============== Cashier commands ==============
@@ -365,8 +374,13 @@ public class CLUI {
 			System.out.println("No active checkout.");
 			return;
 		}
-		system.getSession().computeBill();
-		System.out.printf("Total bill: %.2f€%n", system.getSession().getYourBill());
+		try {
+			system.getSession().computeBill();
+			System.out.printf("Total bill: %.2f€%n", system.getSession().getYourBill());
+		} catch (IllegalStateException e) {
+			// Raised e.g. when delivery weight exceeds the 50 kg limit (R8).
+			System.out.println("Cannot compute bill: " + e.getMessage());
+		}
 	}
 
 	private static void handlePay(String[] args) {
@@ -417,7 +431,28 @@ public class CLUI {
 			System.out.println("Usage: runTest <testScenario-file>");
 			return;
 		}
-		try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+		String name = args[0];
+		// Try several candidate locations so runTest works no matter what the
+		// working directory is (project root, src, bin, or an absolute path).
+		String[] candidates = {
+			name,
+			"src/supermarket/" + name,
+			"bin/supermarket/" + name,
+			System.getProperty("user.dir") + java.io.File.separator + name
+		};
+		java.io.File found = null;
+		for (String path : candidates) {
+			java.io.File f = new java.io.File(path);
+			if (f.exists()) { found = f; break; }
+		}
+		if (found == null) {
+			System.out.println("Could not find test file '" + name + "'.");
+			System.out.println("Working directory is: " + System.getProperty("user.dir"));
+			System.out.println("Put the file there (or in src/supermarket/), or pass a full path.");
+			return;
+		}
+		System.out.println("Running test file: " + found.getAbsolutePath());
+		try (BufferedReader br = new BufferedReader(new FileReader(found))) {
 			String line;
 			while ((line = br.readLine()) != null) {
 				line = line.trim();

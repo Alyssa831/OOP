@@ -19,12 +19,16 @@ public class CheckoutSession {
 	private Stock myStock;
 	private PricingPolicy pp;
 	private POS pos;
+	private PriceCalculator priceCalculator = new PriceCalculator();
+	private double distance ;
+	
 
-	public CheckoutSession(Customer customer, Stock myStock, PricingPolicy pp, POS pos) {
+	public CheckoutSession(Customer customer, Stock myStock, PricingPolicy pp, POS pos, double distance) {
 		this.customer = customer;
 		this.myStock = myStock;
 		this.pp = pp;
 		this.pos = pos;
+		this.distance = distance;
 	}
 
 	public void scanItem(String name, int q) {
@@ -37,38 +41,71 @@ public class CheckoutSession {
 	 * resulting subtotal. The brief is silent on order — this is the documented
 	 * choice for the report.
 	 */
+	/**
+	 * Compute the total bill including delivery fee with R10 dynamic pricing
+	 */
 	public void computeBill() {
 		yourBill = 0.0;
 		totalWeight = 0.0;
 		deliveryFee = 0.0;
+		
+		// Calculate item totals
 		for (Item item : yourItems.keySet()) {
-			yourBill += pp.priceAfterDiscount(item) * yourItems.get(item);
-			totalWeight += item.getWeight() * yourItems.get(item);
+			int q = yourItems.get(item);
+			double newPrice = priceCalculator.calculatePrice(item, q);
+			yourBill += pp.priceAfterDiscount(item, newPrice) * q;
+			totalWeight += item.getWeight() * q;
 		}
-		if(customer.getRequestDelivery() != null) {
-			//deliveryFee is function of weights and distance (R7/R7b)
-			// For example deliveries under 10
-			// Kg and within 30Km distance may be charged a fixed amount (e.g. 15 Euros) whereas
-			// delivery between 10 and 50 Kg should be charged a fixed amount plus a percentage of
-			// the total price for the bought items. Deliveries of more than 50 Kg are not supported
-			// and should be refused by the system
-			if(totalWeight <= 10 && customer.getRequestDelivery() != null) {
-				deliveryFee = 15.0;
+		
+		double subtotalBeforeDelivery = yourBill;
+		
+		// Calculate delivery fee if requested
+		if (customer.getRequestDelivery() != null) {
+			String assignedSlot = customer.getAssignedTimeSlot();
+			
+			// If no slot assigned yet, use DeliveryService to get one
+			if (assignedSlot == null) {
+				DeliveryService ds = DeliveryService.getInstance();
+				assignedSlot = ds.requestDelivery(customer, customer.getRequestDelivery(), totalWeight);
+				if (assignedSlot != null) {
+					customer.setAssignedTimeSlot(assignedSlot);
+				}
 			}
-			else if(totalWeight > 10 && totalWeight <= 50 && customer.getRequestDelivery() != null) {
-				deliveryFee = 15.0 + (0.1 * yourBill); // Example: fixed amount plus 10% of total price
-			}
-			else if(totalWeight > 50 && customer.getRequestDelivery() != null) {
-				System.out.println("Delivery not supported for weights over 50 Kg.");
-				deliveryFee = 0.0; // No delivery fee, as delivery is not supported
+			
+			// Calculate delivery fee with the assigned slot
+			if (assignedSlot != null) {
+				DeliveryService ds = DeliveryService.getInstance();
+				
+				if (totalWeight > 50) {
+					throw new IllegalStateException(
+						"Delivery refused: weight " + totalWeight + " kg exceeds the 50 kg limit.");
+				}
+				
+				deliveryFee = ds.calculateDeliveryFee(totalWeight, subtotalBeforeDelivery, customer, assignedSlot);
+				System.out.printf("Delivery fee: %.2f EUR%n", deliveryFee);
+			} else {
+				// Fallback to legacy R8 logic if no slot available
+				if (totalWeight <= 10 && distance <= 30) {
+					deliveryFee = 15.0;
+				} else if (totalWeight > 10 && totalWeight <= 50) {
+					deliveryFee = 15.0 + (0.1 * yourBill);
+				} else if (totalWeight > 50) {
+					throw new IllegalStateException("Delivery refused: weight exceeds 50kg");
+				}
 			}
 		}
+		
+		// Apply customer plan discount to (item total + delivery fee)
 		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
+		
+		// Clear delivery request for next purchase (but keep assigned slot until payment)
+		// We'll clear the request, but keep assigned slot for booking during pay()
 	}
 
 	/**
 	 * Run the payment. Inventory is decremented and the cart cleared ONLY on
 	 * SUCCESS — failure outcomes leave state untouched so the cashier can retry.
+	 * Also books the delivery slot if delivery was requested.
 	 */
 	public PaymentOutcome pay(int cardnumber, int pin) {
 		PaymentOutcome result = pos.process(cardnumber, pin, yourBill);
@@ -76,8 +113,22 @@ public class CheckoutSession {
 			for (Item item : yourItems.keySet()) {
 				myStock.sold(item, yourItems.get(item));
 			}
+			
+			// Book the delivery slot if delivery was requested
+			if (customer.getRequestDelivery() != null && customer.getAssignedTimeSlot() != null) {
+				DeliveryService ds = DeliveryService.getInstance();
+				ds.bookDelivery(customer, totalWeight);
+				System.out.println("📦 Delivery slot booked successfully!");
+			}
+			
 			yourItems.clear();
 			yourBill = 0;
+			totalWeight = 0;
+			deliveryFee = 0;
+			
+			// Clear delivery request and assigned slot
+			customer.setRequestDelivery(null);
+			customer.clearDeliveryRequest();
 		}
 		return result;
 	}

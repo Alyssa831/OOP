@@ -9,17 +9,17 @@ public class CatDis implements PricingPolicy {
 		// TODO Auto-generated constructor stub
 	}
 	@Override
-	public double priceAfterDiscount(Item item) {
+	public double priceAfterDiscount(Item item,double price) {
 		// If the category has no policy registered, default to no discount
 		// (multiplier 1.0) — avoids NullPointerException on freshly added items.
 		double multiplier = catDis.getOrDefault(item.getCategory(), 1.0);
-		return item.getPrice() * multiplier;
+		return price * multiplier;
 	}
 	@Override
-	public double setCatDis(String cat, double dis) {
+	public void setCatDis(String cat, double dis) {
 		// TODO Auto-generated method stub
 		catDis.put(cat,dis);
-		return 0;
+		
 	}
 
 	
