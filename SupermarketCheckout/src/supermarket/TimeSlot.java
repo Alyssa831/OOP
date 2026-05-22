@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 public class TimeSlot {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private int currentLoad;      // kg already booked
-    private int maxCapacity;      // kg per vehicle
+    private int currentLoad;
+    private int maxCapacity;
     
     public TimeSlot(LocalDateTime startTime, LocalDateTime endTime) {
         this(startTime, endTime, 200);
@@ -34,7 +34,7 @@ public class TimeSlot {
     
     public void addLoad(int weightKg) {
         if (!hasCapacity(weightKg)) {
-            throw new RuntimeException("No capacity: " + currentLoad + "/" + maxCapacity + "kg");
+            throw new RuntimeException("No capacity available");
         }
         this.currentLoad += weightKg;
     }

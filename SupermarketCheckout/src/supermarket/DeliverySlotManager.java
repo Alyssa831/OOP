@@ -35,19 +35,19 @@ public class DeliverySlotManager {
     }
     
     public TimeSlot getSlot(String slotKey) {
-        TimeSlot slot = slots.get(slotKey);
-        if (slot == null) {
-            throw new IllegalArgumentException("Invalid slot: " + slotKey);
-        }
-        return slot;
+        return slots.get(slotKey);
     }
     
-    public List<String> getAvailableSlotStrings(int cartWeightKg) {
+    /**
+     * Find the best available slot for a given cart weight
+     * Returns the soonest available slot with capacity
+     */
+    public TimeSlot findBestAvailableSlot(int cartWeightKg) {
         return slots.values().stream()
             .filter(TimeSlot::isInFuture)
             .filter(slot -> slot.hasCapacity(cartWeightKg))
-            .map(TimeSlot::getSlotKey)
-            .collect(Collectors.toList());
+            .min((s1, s2) -> s1.getStartTime().compareTo(s2.getStartTime()))
+            .orElse(null);
     }
     
     public List<TimeSlot> getAvailableSlots(int cartWeightKg) {
@@ -58,35 +58,16 @@ public class DeliverySlotManager {
     }
     
     public boolean hasCapacity(String slotKey, int weightKg) {
-        try {
-            TimeSlot slot = getSlot(slotKey);
-            return slot.hasCapacity(weightKg) && slot.isInFuture();
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
+        TimeSlot slot = slots.get(slotKey);
+        return slot != null && slot.hasCapacity(weightKg) && slot.isInFuture();
     }
     
     public boolean bookSlot(String slotKey, int weightKg) {
-        try {
-            TimeSlot slot = getSlot(slotKey);
-            if (slot.hasCapacity(weightKg) && slot.isInFuture()) {
-                slot.addLoad(weightKg);
-                return true;
-            }
-            return false;
-        } catch (IllegalArgumentException e) {
-            return false;
+        TimeSlot slot = slots.get(slotKey);
+        if (slot != null && slot.hasCapacity(weightKg) && slot.isInFuture()) {
+            slot.addLoad(weightKg);
+            return true;
         }
-    }
-    
-    public void displayAllSlots() {
-        System.out.println("\n========== DELIVERY SLOTS ==========");
-        for (TimeSlot slot : slots.values()) {
-            System.out.printf("%s | %3d/%3d kg | %s%n",
-                slot.getTimeWindow(),
-                slot.getCurrentLoad(), slot.getMaxCapacity(),
-                slot.isPeakHour() ? "🔴 PEAK" : "🟢 off-peak");
-        }
-        System.out.println("====================================\n");
+        return false;
     }
 }

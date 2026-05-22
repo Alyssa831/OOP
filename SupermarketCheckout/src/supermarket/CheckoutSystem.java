@@ -85,7 +85,14 @@ public class CheckoutSystem {
 
 	public void startCheckout(String customerUsername) {
 		Customer customer = customers.get(customerUsername);
-		session = new CheckoutSession(customer, myStock, pp, pos);
+		// Distance only matters if a delivery was requested. Default 0.0 when
+		// there's no delivery; 999.0 (out of range) if the address is unknown,
+		// so the within-30km delivery band correctly fails.
+		double dist = 0.0;
+		if (customer.getRequestDelivery() != null) {
+			dist = addressDistance.getOrDefault(customer.getRequestDelivery(), 999.0);
+		}
+		session = new CheckoutSession(customer, myStock, pp, pos, dist);
 	}
 
 	public void endSession() { session = null; }

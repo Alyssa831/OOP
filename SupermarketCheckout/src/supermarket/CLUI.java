@@ -162,6 +162,11 @@ public class CLUI {
 		if (!s.getNameItem().containsKey("apple"))   s.addItem("apple",   "fruit-and-vegetables", 1.20, 0.2, 50);
 		if (!s.getNameItem().containsKey("yogurt"))  s.addItem("yogurt",  "dairy",                2.50, 0.5, 30);
 		if (!s.getNameItem().containsKey("chicken")) s.addItem("chicken", "meat",                 7.00, 1.0, 20);
+		//set thresholds for notifications (R9)
+		s.addThreshold("apple", 10);
+		s.addThreshold("yogurt", 5);
+		s.addThreshold("chicken", 5);
+		s.addObserver(new Supplier());
 	}
 
 	// ============== Manager commands ==============
@@ -214,7 +219,9 @@ public class CLUI {
 			double weight = Double.parseDouble(args[3]);
 			int stock = Integer.parseInt(args[4]);
 			system.getMyStock().addItem(name, category, price, weight, stock);
+			system.getMyStock().addThreshold(name, 10); // default threshold for new items
 			System.out.println("Added " + name + " (" + category + ", " + price + "€).");
+			System.out.println("Set default threshold for " + name + " to 10 units.");
 		} catch (NumberFormatException e) {
 			System.out.println("Invalid number in arguments.");
 		}
@@ -287,57 +294,34 @@ public class CLUI {
 	}
 
 	private static void handleRequestDelivery(String[] args) {
+		String address=null;
 		if (!requireRole(Role.CUSTOMER, "requestDelivery")) return;
-		
-		// Need address AND time slot now for R10
-		if (args.length < 2) {
-			System.out.println("Usage: requestDelivery <address> <timeSlot>");
-			System.out.println("Example: requestDelivery \"rue de rivoli, 75001 paris\" \"2026-05-21_18:00\"");
-			System.out.println("\nAvailable time slots:");
-			DeliveryService.getInstance().getAvailableSlots(0).forEach(slot -> 
-				System.out.println("  " + slot));
-			return;
+		if (args.length == 1) {
+			address = ((Customer) currentUser).getAddress();
 		}
-		
-		// Build address (may have spaces) - time slot is the last argument
-		String timeSlot = args[args.length - 1];
-		String address = String.join(" ", java.util.Arrays.copyOf(args, args.length - 1)).toLowerCase();
-		
-		// Check if address exists in system
-		if (!system.getAddressDistance().containsKey(address)) {
+		else{			
+			address = String.join(" ", args);
+			address=address.toLowerCase();
+		}
+		if(!system.getAddressDistance().containsKey(address)) {
 			System.out.println("Unknown address: " + address);
-			System.out.println("Available addresses:");
+			System.out.println("enter an address from the following list or add it to the system:");
 			for (String addr : system.getAddressDistance().keySet()) {
 				System.out.println("  - " + addr);
 			}
 			return;
+		}	
+		if (system.getSession() == null) {
+			System.out.println("Delivery requested to: " + address);
+			((Customer) currentUser).setRequestDelivery(address);
+		}
+		else {
+			System.out.println("  You are already in a checkout session. Delivery request can only be made before starting checkout.");
 		}
 		
-		Customer customer = (Customer) currentUser;
-		
-		// Get current cart weight from active checkout session (if any)
-		double cartWeight = 0;
-		if (system.getSession() != null) {
-			cartWeight = system.getSession().getTotalWeight();  // ← This uses CheckoutSession's getTotalWeight()
-		}
-		
-		// Check if time slot has capacity
-		if (!DeliveryService.getInstance().hasCapacity(cartWeight, timeSlot)) {
-			System.out.println("❌ Time slot " + timeSlot + " is not available or fully booked");
-			System.out.println("Available slots for " + cartWeight + "kg cart:");
-			DeliveryService.getInstance().getAvailableSlots(cartWeight).forEach(slot -> 
-				System.out.println("  " + slot));
-			return;
-		}
-		
-		// Store delivery request with time slot (format: "address|timeSlot")
-		customer.setRequestDelivery(address + "|" + timeSlot);
-		System.out.println("✅ Delivery requested to: " + address);
-		System.out.println("   Time slot: " + timeSlot);
-		
-		if (system.getSession() != null) {
-			System.out.println("⚠️ Note: Checkout already in progress. The delivery fee will be applied when you run computeBill.");
-		}
+		((Customer) currentUser).setRequestDelivery(address);
+		System.out.println("Delivery requested to: " + address);
+		System.out.println("   The system will assign the best available time slot when you checkout.");
 	}
 
 	// ============== Cashier commands ==============
@@ -390,8 +374,13 @@ public class CLUI {
 			System.out.println("No active checkout.");
 			return;
 		}
-		system.getSession().computeBill();
-		System.out.printf("Total bill: %.2f€%n", system.getSession().getYourBill());
+		try {
+			system.getSession().computeBill();
+			System.out.printf("Total bill: %.2f€%n", system.getSession().getYourBill());
+		} catch (IllegalStateException e) {
+			// Raised e.g. when delivery weight exceeds the 50 kg limit (R8).
+			System.out.println("Cannot compute bill: " + e.getMessage());
+		}
 	}
 
 	private static void handlePay(String[] args) {
@@ -442,7 +431,28 @@ public class CLUI {
 			System.out.println("Usage: runTest <testScenario-file>");
 			return;
 		}
-		try (BufferedReader br = new BufferedReader(new FileReader(args[0]))) {
+		String name = args[0];
+		// Try several candidate locations so runTest works no matter what the
+		// working directory is (project root, src, bin, or an absolute path).
+		String[] candidates = {
+			name,
+			"src/supermarket/" + name,
+			"bin/supermarket/" + name,
+			System.getProperty("user.dir") + java.io.File.separator + name
+		};
+		java.io.File found = null;
+		for (String path : candidates) {
+			java.io.File f = new java.io.File(path);
+			if (f.exists()) { found = f; break; }
+		}
+		if (found == null) {
+			System.out.println("Could not find test file '" + name + "'.");
+			System.out.println("Working directory is: " + System.getProperty("user.dir"));
+			System.out.println("Put the file there (or in src/supermarket/), or pass a full path.");
+			return;
+		}
+		System.out.println("Running test file: " + found.getAbsolutePath());
+		try (BufferedReader br = new BufferedReader(new FileReader(found))) {
 			String line;
 			while ((line = br.readLine()) != null) {
 				line = line.trim();
