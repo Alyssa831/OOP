@@ -19,22 +19,11 @@ public class DeliveryService {
     
     // Store the assigned slot for each customer's pending delivery
     private Map<String, String> customerAssignedSlot;
-
-    // Address book: address (lowercased) -> distance in km.
-    // Unknown addresses fall back to a default distance (see calculateDistance).
-    private Map<String, Double> distanceBook;
-    private static final double DEFAULT_DISTANCE_KM = 20.0;
-
+    
     private DeliveryService() {
         this.slotManager = DeliverySlotManager.getInstance();
         this.deliveriesByArea = new HashMap<>();
         this.customerAssignedSlot = new HashMap<>();
-        this.distanceBook = new HashMap<>();
-    }
-
-    /** Register a known address and its distance (km). Case-insensitive. */
-    public void setDistance(String address, double km) {
-        if (address != null) distanceBook.put(address.toLowerCase(), km);
     }
     
     public static DeliveryService getInstance() {
@@ -55,7 +44,7 @@ public class DeliveryService {
      */
     public String requestDelivery(Customer customer, String address, double cartWeight) {
         if (cartWeight > 50) {
-            System.out.println("❌ Delivery not supported: weight exceeds 50kg");
+            System.out.println("Delivery not supported: weight exceeds 50kg");
             return null;
         }
         
@@ -63,7 +52,7 @@ public class DeliveryService {
         TimeSlot bestSlot = slotManager.findBestAvailableSlot((int)cartWeight);
         
         if (bestSlot == null) {
-            System.out.println("❌ No delivery slots available. Please try again later.");
+            System.out.println("No delivery slots available. Please try again later.");
             return null;
         }
         
@@ -71,16 +60,20 @@ public class DeliveryService {
         String slotKey = bestSlot.getSlotKey();
         customerAssignedSlot.put(customer.getUsername(), slotKey);
         
+        // Calculate estimated fee to show customer (with eco discount if applicable)
+        double estimatedFee = calculateDeliveryFee(cartWeight, 0, customer, slotKey, 0);
+        
         // Show customer their assigned slot
-        System.out.println("✅ Delivery requested to: " + address);
-        System.out.println("   📦 Assigned time slot: " + bestSlot.getTimeWindow());
+        System.out.println("Delivery requested to: " + address);
+        System.out.println("Assigned time slot: " + bestSlot.getTimeWindow());
+        System.out.printf("Estimated delivery fee: %.2f EUR%n", estimatedFee);
         
         if (bestSlot.isPeakHour()) {
-            System.out.println("   ⚠️ Peak hour surcharge applied (+50%)");
+            System.out.println("Peak hour surcharge applied (+50%)");
         }
         
         if (isEcoFriendlySlot(slotKey, address)) {
-            System.out.println("   🌱 Eco-friendly discount applied (-30%): Truck already in your area");
+            System.out.println("Eco-friendly discount applied (-30%): Truck already in your area");
         }
         
         return slotKey;
@@ -89,17 +82,14 @@ public class DeliveryService {
     /**
      * Calculate delivery fee with all applicable rules
      */
-    public double calculateDeliveryFee(double totalWeight, double subtotal, Customer customer, String slotKey) {
-        // Use the requested delivery address; fall back to the registered one.
-        String address = customer.getRequestDelivery() != null
-            ? customer.getRequestDelivery() : customer.getAddress();
+    public double calculateDeliveryFee(double totalWeight, double subtotal, Customer customer, String slotKey, double distance) {
+        String address = customer.getAddress();
         
         if (totalWeight > 50) {
             return 0.0;
         }
         
-        int distanceKm = calculateDistance(address);
-        double baseFee = calculateBaseFee(totalWeight, distanceKm, subtotal);
+        double baseFee = calculateBaseFee(totalWeight, distance, subtotal);
         
         TimeSlot slot = slotManager.getSlot(slotKey);
         if (slot == null) {
@@ -148,6 +138,7 @@ public class DeliveryService {
     
     /**
      * Check if a slot is eco-friendly (truck already in area)
+     * For R10: This checks against ALREADY BOOKED deliveries (from deliveriesByArea)
      */
     public boolean isEcoFriendlySlot(String slotKey, String address) {
         TimeSlot slot = slotManager.getSlot(slotKey);
@@ -155,20 +146,42 @@ public class DeliveryService {
         
         String area = extractAreaCode(address);
         String key = slot.getStartTime().toString() + "_" + area;
+        
+        // Check if there's already a booked delivery in this area for this time slot
         return deliveriesByArea.getOrDefault(key, 0) > 0;
+    }
+
+    public String extractAreaCode(String address) {
+        String[] words = address.trim().split("\\s+");
+        String zone = words[words.length - 1]; // get zone: versailles, paris, etc
+        
+        // FIXED: Use .equals() for string comparison
+        if (zone.equals("paris")) {
+            String[] parts = address.split(",");
+            if (parts.length >= 2) {
+                String postalPart = parts[1].trim();  // "75001 paris"
+                String[] postalWords = postalPart.split("\\s+");
+                String postalCode = postalWords[0];   // "75001"
+                if (postalCode.matches("\\d{5}")) {
+                    String arrondissement = postalCode.substring(3); // Get last two digits
+                    zone += arrondissement;  // becomes "paris01", "paris16", etc.
+                }
+            }
+        }
+        return zone;
     }
     
     /**
      * Get slot info for display
      */
     public TimeSlot getSlotInfo(String slotKey) {
-        return slotManager.getSlot(slotKey);
+        return slotManager.getSlot(slotKey);                                                                                
     }
     
     // ========== Private Helper Methods ==========
     
-    private double calculateBaseFee(double weightKg, int distanceKm, double subtotal) {
-        if (weightKg < 10 && distanceKm <= 30) {
+    private double calculateBaseFee(double weightKg, double distance, double subtotal) {
+        if (weightKg < 10 && distance <= 30) {
             return 15.0;
         } else if (weightKg >= 10 && weightKg <= 50) {
             return 15.0 + (subtotal * 0.05);
@@ -191,17 +204,5 @@ public class DeliveryService {
             return 0.0;
         }
         return fee;
-    }
-    
-    private int calculateDistance(String address) {
-        // Look the address up in the address book (case-insensitive).
-        // Unknown addresses fall back to a default distance.
-        if (address == null) return (int) Math.round(DEFAULT_DISTANCE_KM);
-        return (int) Math.round(distanceBook.getOrDefault(address.toLowerCase(), DEFAULT_DISTANCE_KM));
-    }
-    
-    private String extractAreaCode(String address) {
-        String postalCode = extractPostalCode(address);
-        return postalCode.length() >= 3 ? postalCode.substring(0, 3) : postalCode;
     }
 }

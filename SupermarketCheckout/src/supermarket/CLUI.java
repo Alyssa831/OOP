@@ -152,10 +152,11 @@ public class CLUI {
 		system.registerCustomer("Default", "Customer", "customer", "1 Default Street", 2222, customerCard);
 		
 		// Set addresses and distances for delivery (R7/R8/R8b).
-		system.setAddressDistance("rue de rivoli, 75001 paris", 1.3);
-		system.setAddressDistance("place d'armes, 78000 versailles", 19.84);
-		system.setAddressDistance("95700 roissy-en-france", 33.76);
-		system.setAddressDistance("boulevard de Parc, 77700 Coupvray", 39.58);
+		system.setAddressDistance("rue de rivoli, 75001 paris", 1.3); // 1st arrondissement
+		system.setAddressDistance("rue de louvre, 75001 paris", 0.4);
+		system.setAddressDistance("rue de belleville, 75019 paris", 4.5); // 19th arrondissement
+		system.setAddressDistance("place d'armes, 78000 versailles", 19.84); // outside of paris
+		system.setAddressDistance("boulevard de Parc, 77700 Coupvray", 39.58); // >30km away
 
 		// Three mandatory categories (R2b) — one starter item per category.
 		Stock s = system.getMyStock();

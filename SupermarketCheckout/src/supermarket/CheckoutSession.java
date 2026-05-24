@@ -81,7 +81,7 @@ public class CheckoutSession {
 						"Delivery refused: weight " + totalWeight + " kg exceeds the 50 kg limit.");
 				}
 				
-				deliveryFee = ds.calculateDeliveryFee(totalWeight, subtotalBeforeDelivery, customer, assignedSlot);
+				deliveryFee = ds.calculateDeliveryFee(totalWeight, subtotalBeforeDelivery, customer, assignedSlot, distance);
 				System.out.printf("Delivery fee: %.2f EUR%n", deliveryFee);
 			} else {
 				// Fallback to legacy R8 logic if no slot available
