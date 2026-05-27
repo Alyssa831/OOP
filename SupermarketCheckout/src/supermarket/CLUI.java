@@ -151,21 +151,12 @@ public class CLUI {
 		tas.addCardInfo(1234, new Info(500.0, true));
 		system.registerCustomer("Default", "Customer", "customer", "1 Default Street", 2222, customerCard);
 		
-		// Set addresses and distances for delivery (R7/R8/R10).
-		// Populate both the legacy CheckoutSystem map and the DeliveryService
-		// address book (the latter is what the R10 fee calculation uses now).
-		DeliveryService ds = DeliveryService.getInstance();
-		String[][] knownAddresses = {
-			{"rue de rivoli, 75001 paris",        "1.3"},
-			{"place d'armes, 78000 versailles",   "19.84"},
-			{"95700 roissy-en-france",            "33.76"},
-			{"boulevard de parc, 77700 coupvray", "39.58"}
-		};
-		for (String[] a : knownAddresses) {
-			double km = Double.parseDouble(a[1]);
-			system.setAddressDistance(a[0], km);
-			ds.setDistance(a[0], km);
-		}
+		// Set addresses and distances for delivery (R7/R8/R8b).
+		system.setAddressDistance("rue de rivoli, 75001 paris", 1.3); // 1st arrondissement
+		system.setAddressDistance("rue de louvre, 75001 paris", 0.4);
+		system.setAddressDistance("rue de belleville, 75019 paris", 4.5); // 19th arrondissement
+		system.setAddressDistance("place d'armes, 78000 versailles", 19.84); // outside of paris
+		system.setAddressDistance("boulevard de Parc, 77700 Coupvray", 39.58); // >30km away
 
 		// Three mandatory categories (R2b) — one starter item per category.
 		Stock s = system.getMyStock();
