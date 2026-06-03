@@ -3,11 +3,15 @@ package supermarket;
 /**
  * Platinum plan — 30% discount on the bill regardless of total (R5).
  */
-public class Platinum implements DiscountPlan {
+public class Platinum implements CustomerPlan {
 	private double discount = 0.3;
 
 	@Override
-	public double billAfterDiscount(double price, double deliveryfee) {
+	public double billAfterDiscount(double price) {
 		return price * (1 - discount);
+	}
+
+	public int getAnnualFee() {
+		return 200;
 	}
 }
