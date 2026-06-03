@@ -1,6 +1,6 @@
 package supermarket;
 
-public class Prime implements DiscountPlan {
+public class Prime implements CustomerPlan {
 	
 	double discount=0.2;
 	public Prime() {
@@ -10,12 +10,15 @@ public class Prime implements DiscountPlan {
 	//is greater than or equal to 50 Euros
 
 	@Override
-	public double billAfterDiscount(double price, double deliveryfee) {
-		// Item discount only (R5): 20% off the items when the subtotal is >= 50€.
-		// The delivery fee's plan discount (R8b: prime pays 50%) is applied by
-		// DeliveryService, so here we just ADD the already-discounted delivery fee.
-		double items = (price >= 50) ? price * (1 - discount) : price;
-		return items + deliveryfee;
+	public double billAfterDiscount(double price) {
+		// 20% off when the subtotal is >= 50€, no discount otherwise (R5)
+		if (price >= 50) return price * (1 - discount);
+		
+		return price;
+	}
+
+	public int getAnnualFee() {
+		return 50;
 	}
 
 }

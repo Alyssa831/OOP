@@ -95,8 +95,8 @@ public class CheckoutSession {
 			}
 		}
 		
-		// Apply customer plan discount to (item total + delivery fee)
-		yourBill = customer.getDp().billAfterDiscount(yourBill, deliveryFee);
+		// Apply customer plan discount to item total
+		yourBill = customer.getDp().billAfterDiscount(yourBill);
 		
 		// Clear delivery request for next purchase (but keep assigned slot until payment)
 		// We'll clear the request, but keep assigned slot for booking during pay()

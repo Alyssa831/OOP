@@ -16,7 +16,7 @@ public class CheckoutSystem {
 	private Map<String, Double> addressDistance = new HashMap<>(); // for delivery fee calculation (R7/R7b)
 
 	// Available plans for subscribeToPlan (extensible — register new ones here).
-	private Map<String, DiscountPlan> plans = new HashMap<>();
+	private Map<String, CustomerPlan> plans = new HashMap<>();
 
 	private CheckoutSession session;
 	// Start with an empty CatDis so computeBill works even before any
@@ -45,11 +45,11 @@ public class CheckoutSystem {
 
 	// ---- Plan registry (extensibility for R5b) ----
 
-	public void registerPlan(String name, DiscountPlan plan) {
+	public void registerPlan(String name, CustomerPlan plan) {
 		plans.put(name.toLowerCase(), plan);
 	}
 
-	public DiscountPlan getPlan(String name) {
+	public CustomerPlan getPlan(String name) {
 		return plans.get(name.toLowerCase());
 	}
 

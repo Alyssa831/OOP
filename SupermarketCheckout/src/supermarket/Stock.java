@@ -33,7 +33,7 @@ public class Stock implements Observable {
 	public void sold(Item item, int quantity) {
 		item.setQuantity(item.getQuantity() - quantity);
 		// NOTE (per user request): leave the threshold check logic alone.
-		if (quantity <= threshold.get(item)) {
+		if (item.getQuantity() <= threshold.get(item)) {
 			this.changed = true;
 			this.notifyObserver(item);
 		}

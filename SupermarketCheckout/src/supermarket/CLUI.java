@@ -319,12 +319,43 @@ public class CLUI {
 			System.out.println("Usage: subscribeToPlan <planName>");
 			return;
 		}
-		DiscountPlan plan = system.getPlan(args[0]);
+		CustomerPlan plan = system.getPlan(args[0]);
 		if (plan == null) {
 			System.out.println("Unknown plan: " + args[0]);
 			return;
 		}
-		((Customer) currentUser).setDp(plan);
+		Customer customer = (Customer) currentUser;
+		double annualFee = plan.getAnnualFee();
+		// Check if customer is already on this plan (optional)
+		if (customer.getDp().getClass().equals(plan.getClass())) {
+			System.out.println("You are already subscribed to " + args[0]);
+			return;
+		}
+		
+		// Charge the annual fee if applicable
+		if (annualFee > 0) {
+			Card customerCard = customer.getCard();
+			if (customerCard == null) {
+				System.out.println("No card on file. Cannot charge annual fee.");
+				return;
+			}
+			
+			// Use the POS to charge the fee
+			PaymentOutcome outcome = system.getPos().process(
+				customerCard.getCardNumber(), 
+				customerCard.getPin(), 
+				annualFee
+			);
+			
+			if (outcome != PaymentOutcome.SUCCESS) {
+				System.out.println("Annual fee payment failed: " + outcome);
+				System.out.println("Subscription cancelled.");
+				return;
+			}
+			
+			System.out.printf("Annual fee of %.2f EUR charged successfully.%n", annualFee);
+		}
+		customer.setDp(plan);
 		System.out.println(currentUser.getUsername() + " subscribed to " + args[0]);
 	}
 

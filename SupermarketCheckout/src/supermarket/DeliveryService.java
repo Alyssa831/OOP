@@ -158,9 +158,9 @@ public class DeliveryService {
         }
         return fee;
     }
-
+    
     private double applyPlanDiscount(double fee, Customer customer) {
-        DiscountPlan plan = customer.getDp();
+        CustomerPlan plan = customer.getDp();
         if (plan instanceof Prime) {
             return fee * 0.5;
         } else if (plan instanceof Platinum) {

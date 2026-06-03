@@ -10,7 +10,7 @@ public class Customer extends User {
 	private String firstname;
 	private String surname;
 	private String address;
-	private DiscountPlan dp;
+	private CustomerPlan dp;
 	private Card card;
 	private static int idCounter = 0;
 	private String requestDelivery=null;
@@ -31,13 +31,13 @@ public class Customer extends User {
 	public String getFirstname()     { return firstname; }
 	public String getSurname()       { return surname; }
 	public String getAddress()       { return address; }
-	public DiscountPlan getDp()      { return dp; }
+	public CustomerPlan getDp()      { return dp; }
 	public Card getCard()            { return card; }
 	public String getRequestDelivery() { return requestDelivery; }
 	public String getAssignedTimeSlot() { return assignedTimeSlot; }
 	
 	public void setRequestDelivery(String requestDelivery) { this.requestDelivery = requestDelivery; }
-	public void setDp(DiscountPlan dp) { this.dp = dp; }
+	public void setDp(CustomerPlan dp) { this.dp = dp; }
 	public void setCard(Card card)     { this.card = card; }
 	public void setAssignedTimeSlot(String timeSlot) { this.assignedTimeSlot = timeSlot; }
 
