@@ -1,0 +1,44 @@
+%% Use Case Diagram for Supermarket Checkout System
+%% Actors: Customer, Cashier, Manager, Bank TAS
+
+graph TD
+    %% Define actors with custom styling
+    Customer([Customer])
+    Cashier([Cashier])
+    Manager([Manager])
+    BankTAS([Bank TAS])
+
+    %% Use cases for Customer
+    Customer -->|uses| UC_Login(Login)
+    Customer -->|uses| UC_Subscribe(Subscribe to Plan)
+    Customer -->|uses| UC_RequestDelivery(Request Delivery)
+
+    %% Use cases for Cashier
+    Cashier -->|uses| UC_StartCheckout(Start Checkout)
+    Cashier -->|uses| UC_ScanItem(Scan Item)
+    Cashier -->|uses| UC_ComputeBill(Compute Bill)
+    Cashier -->|uses| UC_Pay(Pay)
+    Cashier -->|uses| UC_SimulatePayment(Simulate Payment)
+
+    %% Use cases for Manager
+    Manager -->|uses| UC_RegisterCashier(Register Cashier)
+    Manager -->|uses| UC_RegisterCustomer(Register Customer)
+    Manager -->|uses| UC_AddItem(Add Item)
+    Manager -->|uses| UC_Restock(Restock Item)
+    Manager -->|uses| UC_SetCatDiscount(Set Category Discount)
+    Manager -->|uses| UC_ShowInventory(Show Inventory)
+    Manager -->|uses| UC_ShowRevenue(Show Revenue)
+
+    %% External system (Bank TAS) – used by Pay
+    UC_Pay -.->|<<extends>>| UC_TASAuth(Authorise Transaction)
+    UC_TASAuth --> BankTAS
+
+    %% Optional: system boundary (optional, Mermaid doesn't have a clean box, but we can add a comment)
+    %% Uncomment below to add a pseudo-boundary using subgraph (may not render perfectly)
+    %% subgraph SystemBoundary [Supermarket Checkout System]
+    %%     UC_Login, UC_Subscribe, UC_RequestDelivery, UC_StartCheckout, UC_ScanItem,
+    %%     UC_ComputeBill, UC_Pay, UC_SimulatePayment, UC_RegisterCashier,
+    %%     UC_RegisterCustomer, UC_AddItem, UC_Restock, UC_SetCatDiscount,
+    %%     UC_ShowInventory, UC_ShowRevenue
+    %% end
+    

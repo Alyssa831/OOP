@@ -1,0 +1,66 @@
+sequenceDiagram
+    participant Cashier
+    participant CLUI as CLUI
+    participant CS as CheckoutSystem
+    participant Session as CheckoutSession
+    participant POS
+    participant TAS as Bank TAS
+    participant Stock
+
+    Cashier->>CLUI: startCheckout customer
+    CLUI->>CS: startCheckout(customer)
+    CS->>Session: create session
+    CS-->>CLUI: session ready
+    CLUI-->>Cashier: "Checkout started"
+
+    Cashier->>CLUI: scanItem apple 10
+    CLUI->>Session: scanItem(apple,10)
+    Session->>Session: add to cart
+    CLUI-->>Cashier: "Scanned"
+
+    Cashier->>CLUI: computeBill
+    CLUI->>Session: computeBill()
+    Session->>Session: calculate item subtotal<br/>(bulk + category discounts)
+    alt delivery requested
+        Session->>Session: request time slot & calculate delivery fee
+    end
+    Session->>Session: apply customer plan discount
+    Session-->>CLUI: total bill
+    CLUI-->>Cashier: "Total bill: X€"
+
+    Cashier->>CLUI: pay cardNumber pin
+    CLUI->>Session: pay(cardNumber, pin, bill)
+    Session->>POS: process(cardNumber, pin, bill)
+
+    POS->>POS: check PIN (local on card chip)
+    alt PIN wrong
+        POS-->>Session: PIN_WRONG
+    else PIN correct
+        POS->>TAS: authorise(cardNumber, amount)
+        TAS->>TAS: check balance
+        alt insufficient funds
+            TAS-->>POS: decline
+            POS-->>Session: INSUFFICIENT_FUNDS
+        else auth denied
+            TAS-->>POS: deny
+            POS-->>Session: AUTH_DENIED
+        else success
+            TAS-->>POS: approve
+            POS->>TAS: debit account
+            POS-->>Session: SUCCESS
+        end
+    end
+
+    alt payment SUCCESS
+        Session->>Stock: decrement inventory for each item
+        Stock->>Stock: check threshold
+        alt below threshold
+            Stock-->>Supplier: notify (Observer)
+        end
+        Session->>Session: book delivery slot if any
+        Session->>CS: clear session
+        CS->>CS: add revenue
+        CLUI-->>Cashier: "Payment successful, receipt printed"
+    else payment failed
+        CLUI-->>Cashier: "Payment failed: reason"
+    end
